@@ -1,0 +1,12 @@
+version: "3.7"
+
+services:
+  php:
+    container_name: ${MICROSAGA_COMPOSE_PROJECT_NAME}_php
+    user: 1000:1000
+    build:
+      context: .docker/php7.2-dev
+    volumes:
+      - ~/.composer/cache/:/.composer_cache/:rw
+      - ../:/packages:rw
+    working_dir: /packages/Saga
