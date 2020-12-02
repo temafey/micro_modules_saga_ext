@@ -4,9 +4,9 @@
     "description": "Micro module Saga common library",
     "license": "proprietary",
     "require": {
-        "php": "^7.3",
+        "php": "^7.3 || ^8.0",
         "ext-json": "*",
-        "micro-module/broadway-saga": "^0.4",
+        "micro-module/broadway-saga": "^0.5",
         "broadway/broadway": "^2.1",
         "league/tactician": "^1.0"
     },
@@ -21,7 +21,7 @@
         "phpunit/phpunit": "^9.0",
         "roave/security-advisories": "dev-master",
         "symplify/easy-coding-standard": "^7.2",
-        "vimeo/psalm": "3.5.0"
+        "vimeo/psalm": "^4.2"
     },
     "config": {
         "preferred-install": {

@@ -8,5 +8,5 @@ services:
       context: .docker/php7.2-dev
     volumes:
       - ~/.composer/cache/:/.composer_cache/:rw
-      - ../:/packages:rw
-    working_dir: /packages/Saga
+      - .:/app:rw
+    working_dir: /app
