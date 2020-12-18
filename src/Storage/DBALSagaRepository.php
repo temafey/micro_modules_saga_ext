@@ -26,36 +26,36 @@ use PDO;
  */
 class DBALSagaRepository implements RepositoryInterface
 {
-    private const SUPPORTED_TYPES = [
+    protected const SUPPORTED_TYPES = [
         'NULL' => PDO::PARAM_NULL,
         'integer' => PDO::PARAM_INT,
         'string' => PDO::PARAM_STR,
         'boolean' => PDO::PARAM_BOOL,
     ];
 
-    private const CONNECTION_TYPE_POSTGRES = 'postgres';
-    private const CONNECTION_TYPE_MYSQL = 'mysql';
+    protected const CONNECTION_TYPE_POSTGRES = 'postgres';
+    protected const CONNECTION_TYPE_MYSQL = 'mysql';
 
     /**
      * Database connection object.
      *
      * @var Connection
      */
-    private $connection;
+    protected $connection;
 
     /**
      * Database connection type.
      *
      * @var string
      */
-    private $connectionType;
+    protected $connectionType;
 
     /**
      * Saga state database table name.
      *
      * @var string
      */
-    private $tableName;
+    protected $tableName;
 
     /**
      * DBALSagaRepository constructor.
@@ -78,7 +78,7 @@ class DBALSagaRepository implements RepositoryInterface
      *
      * @throws DBALException
      */
-    private function setConnection(Connection $connection): void
+    protected function setConnection(Connection $connection): void
     {
         $this->connection = $connection;
         $connectionDrive = $this->connection->getDriver();
@@ -191,7 +191,7 @@ class DBALSagaRepository implements RepositoryInterface
      *
      * @return mixed[]
      */
-    private function getSagaStatesByCriteriaAndStatus(?Criteria $criteria, ?string $sagaId, $status = State::SAGA_STATE_STATUS_IN_PROGRESS): array
+    protected function getSagaStatesByCriteriaAndStatus(?Criteria $criteria, ?string $sagaId, $status = State::SAGA_STATE_STATUS_IN_PROGRESS): array
     {
         $selects = ['id', 'saga_id', 'status', 'values'];
         $query = 'SELECT '.implode(', ', $selects).' FROM '.$this->tableName.' WHERE ';
@@ -233,7 +233,7 @@ class DBALSagaRepository implements RepositoryInterface
      * @param string[] $queryConditions
      * @param string   $key
      */
-    private function applyJsonFiltering(array &$queryConditions, string $key): void
+    protected function applyJsonFiltering(array &$queryConditions, string $key): void
     {
         switch ($this->connectionType) {
             case self::CONNECTION_TYPE_MYSQL:
@@ -253,7 +253,7 @@ class DBALSagaRepository implements RepositoryInterface
      *
      * @return mixed[]
      */
-    private function getParamTypes(array $params): array
+    protected function getParamTypes(array $params): array
     {
         $supportedTypes = self::SUPPORTED_TYPES;
 
@@ -273,7 +273,7 @@ class DBALSagaRepository implements RepositoryInterface
      *
      * @return bool
      */
-    private function activeSagaExists(string $sagaId, string $id): bool
+    protected function activeSagaExists(string $sagaId, string $id): bool
     {
         $query = 'SELECT 1 FROM '.$this->tableName.' WHERE saga_id = ? AND id = ? AND status IN (?,?)';
         $params = [$sagaId, $id, State::SAGA_STATE_STATUS_FAILED, State::SAGA_STATE_STATUS_IN_PROGRESS];
