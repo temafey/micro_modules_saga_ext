@@ -1,9 +1,8 @@
-version = $(shell git describe --tags --dirty --always)
-build_name = application-$(version)
-# use the rest as arguments for "run"
-RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
-# ...and turn them into do-nothing targets
-#$(eval $(RUN_ARGS):;@:)
+$(shell (if [ ! -e .env ]; then cp default.env .env; fi))
+include .env
+export
+
+RUN_ARGS = $(filter-out $@,$(MAKECMDGOALS))
 
 .PHONY: fix-permission
 fix-permission: ## fix permission for docker env
@@ -14,11 +13,6 @@ fix-permission: ## fix permission for docker env
 build: ## build environment and initialize composer and project dependencies
 	docker-compose build
 	make composer-install
-
-.PHONY: stop
-stop:
-	docker-compose stop
-
 
 .PHONY: composer-install
 composer-install: ## Install project dependencies
@@ -51,7 +45,7 @@ style: ## executes php analizers
 
 .PHONY: lint
 lint: ## checks syntax of PHP files
-	docker-compose run --rm --no-deps php sh -lc './vendor/bin/parallel-lint ./ --exclude vendor --exclude bin/.phpunit'
+	docker-compose run --rm --no-deps php sh -lc './vendor/bin/parallel-lint ./ --exclude vendor'
 
 .PHONY: logs
 logs: ## look for service logs

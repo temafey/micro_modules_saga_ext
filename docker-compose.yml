@@ -5,8 +5,10 @@ services:
     container_name: ${MICROSAGA_COMPOSE_PROJECT_NAME}_php
     user: 1000:1000
     build:
-      context: .docker/php7.2-dev
+      context: .docker/php8.0-dev
     volumes:
       - ~/.composer/cache/:/.composer_cache/:rw
-      - .:/app:rw
+      - ./:/app:rw
     working_dir: /app
+    env_file:
+      - .env
