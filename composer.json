@@ -4,24 +4,24 @@
     "description": "Micro module Saga common library",
     "license": "proprietary",
     "require": {
-        "php": "^7.3 || ^8.0",
+        "php": "^8.0",
         "ext-json": "*",
-        "micro-module/broadway-saga": "^0.5",
-        "broadway/broadway": "^2.1",
-        "league/tactician": "^1.0"
+        "league/tactician": "^1.0",
+        "micro-module/broadway": "^2.6",
+        "micro-module/broadway-saga": "^0.6.0"
     },
     "require-dev": {
+        "mockery/mockery": "^1.3",
         "php-parallel-lint/php-console-highlighter": "^0.4",
         "php-parallel-lint/php-parallel-lint": "^1.0",
-        "mockery/mockery": "^1.3",
         "phpmd/phpmd": "^2.8",
         "phpstan/phpstan": "^0.12",
         "phpstan/phpstan-mockery": "^0.12",
         "phpstan/phpstan-phpunit": "^0.12",
         "phpunit/phpunit": "^9.0",
         "roave/security-advisories": "dev-master",
-        "symplify/easy-coding-standard": "^7.2",
-        "vimeo/psalm": "^4.2"
+        "symplify/easy-coding-standard": "^9.4",
+        "vimeo/psalm": "^4.10"
     },
     "config": {
         "preferred-install": {
@@ -34,4 +34,4 @@
             "MicroModule\\Saga\\": "src"
         }
     }
-  }
+}
