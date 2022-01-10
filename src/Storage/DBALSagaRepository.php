@@ -26,6 +26,12 @@ use PDO;
  */
 class DBALSagaRepository implements RepositoryInterface
 {
+    protected const FIELD_ID = 'id';
+    protected const FIELD_SAGA_ID = 'saga_id';
+    protected const FIELD_STATUS = 'status';
+    protected const FIELD_VALUES = 'values';
+    protected const FIELD_RECORDED_ON = 'recorded_on';
+
     protected const SUPPORTED_TYPES = [
         'NULL' => PDO::PARAM_NULL,
         'integer' => PDO::PARAM_INT,
@@ -61,7 +67,7 @@ class DBALSagaRepository implements RepositoryInterface
      * DBALSagaRepository constructor.
      *
      * @param Connection $connection
-     * @param string     $tableName
+     * @param string $tableName
      *
      * @throws DBALException
      */
@@ -83,29 +89,18 @@ class DBALSagaRepository implements RepositoryInterface
         $this->connection = $connection;
         $connectionDrive = $this->connection->getDriver();
 
-        switch (true) {
-            case $connectionDrive instanceof AbstractPostgreSQLDriver:
-                $this->connectionType = self::CONNECTION_TYPE_POSTGRES;
-
-                break;
-
-            case $connectionDrive instanceof AbstractMySQLDriver:
-                $this->connectionType = self::CONNECTION_TYPE_MYSQL;
-
-                break;
-
-            default:
-                throw new DBALException('Unsupported database type: '.get_class($connectionDrive));
-
-                break;
-        }
+        $this->connectionType = match (true) {
+            $connectionDrive instanceof AbstractPostgreSQLDriver => self::CONNECTION_TYPE_POSTGRES,
+            $connectionDrive instanceof AbstractMySQLDriver => self::CONNECTION_TYPE_MYSQL,
+            default => throw new DBALException(sprintf('Unsupported database type: %s', get_class($connectionDrive)))
+        };
     }
 
     /**
      * Find saga by criteria.
      *
      * @param Criteria $criteria
-     * @param mixed    $sagaId
+     * @param mixed $sagaId
      *
      * @return null|State
      */
@@ -113,16 +108,13 @@ class DBALSagaRepository implements RepositoryInterface
     {
         $results = $this->getSagaStatesByCriteriaAndStatus($criteria, $sagaId);
         $count = count($results);
-
         if (1 === $count) {
             $result = current($results);
-            $result['status'] = $result['status'];
-            $result['values'] = json_decode($result['values'], true);
+            $result[self::FIELD_VALUES] = json_decode($result[self::FIELD_VALUES], true);
 
             return State::deserialize($result);
         }
-
-        if ($count > 1) {
+        if (1 < $count) {
             throw new RepositoryException('Multiple saga state instances found.');
         }
 
@@ -133,7 +125,7 @@ class DBALSagaRepository implements RepositoryInterface
      * Find failed saga states.
      *
      * @param Criteria|null $criteria
-     * @param string|null   $sagaId
+     * @param string|null $sagaId
      *
      * @return State[]
      */
@@ -143,8 +135,7 @@ class DBALSagaRepository implements RepositoryInterface
         $failedStates = [];
 
         foreach ($results as $result) {
-            $result['status'] = $result['status'];
-            $result['values'] = json_decode($result['values'], true);
+            $result[self::FIELD_VALUES] = json_decode($result[self::FIELD_VALUES], true);
             $failedStates[] = State::deserialize($result);
         }
 
@@ -160,24 +151,28 @@ class DBALSagaRepository implements RepositoryInterface
     {
         $serializedState = $state->serialize();
         $saveState = [
-            'id' => $serializedState['id'],
-            'saga_id' => $serializedState['saga_id'],
-            'status' => $serializedState['status'],
-            'values' => json_encode($serializedState['values']),
+            self::FIELD_ID => $serializedState[self::FIELD_ID],
+            self::FIELD_SAGA_ID => $serializedState[self::FIELD_SAGA_ID],
+            self::FIELD_STATUS => $serializedState[self::FIELD_STATUS],
+            self::FIELD_VALUES => json_encode($serializedState[self::FIELD_VALUES]),
         ];
         $this->connection->beginTransaction();
-        $isNewState = !$this->activeSagaExists($serializedState['saga_id'], $serializedState['id']);
+        $isNewState = !$this->activeSagaExists($serializedState[self::FIELD_SAGA_ID], $serializedState[self::FIELD_ID]);
 
         try {
             if ($isNewState) {
                 $this->connection->insert($this->tableName, $saveState);
             } else {
-                $this->connection->update($this->tableName, $saveState, ['id' => $serializedState['id']]);
+                $this->connection->update(
+                    $this->tableName,
+                    $saveState,
+                    [
+                        self::FIELD_ID => $serializedState[self::FIELD_ID]
+                    ]
+                );
             }
 
-            //Notice: For MySQL PDO `values` is a reserved name! It is needed to be quoted.
-            $this->connection->quote('values');
-
+            $this->quoteColumnNames(array_keys($saveState));
             $this->connection->commit();
         } catch (DBALException $exception) {
             $this->connection->rollBack();
@@ -186,37 +181,54 @@ class DBALSagaRepository implements RepositoryInterface
         }
     }
 
+    private function quoteColumnNames(array $columnNames): void
+    {
+        //Notice: For MySQL PDO `values` is a reserved name! It is needed to be quoted.
+        if (self::CONNECTION_TYPE_MYSQL !== $this->connectionType) {
+            return;
+        }
+
+        foreach ($columnNames as $columnName) {
+            $this->connection->quoteSingleIdentifier($columnName);
+        }
+    }
+
     /**
      * Find and return sagas states by criteria and status.
      *
      * @param Criteria|null $criteria
-     * @param string|null   $sagaId
-     * @param int[]|int     $status
+     * @param string|null $sagaId
+     * @param int[]|int $status
      *
      * @return mixed[]
      */
-    protected function getSagaStatesByCriteriaAndStatus(?Criteria $criteria, ?string $sagaId, $status = State::SAGA_STATE_STATUS_IN_PROGRESS): array
-    {
-        $selects = ['id', 'saga_id', 'status', 'values'];
-        $query = 'SELECT '.implode(', ', $selects).' FROM '.$this->tableName.' WHERE ';
+    protected function getSagaStatesByCriteriaAndStatus(
+        ?Criteria $criteria,
+        ?string $sagaId,
+        $status = State::SAGA_STATE_STATUS_IN_PROGRESS
+    ): array {
+        $selects = [
+            self::FIELD_ID,
+            self::FIELD_SAGA_ID,
+            self::FIELD_STATUS,
+            self::FIELD_VALUES,
+        ];
+        $query = 'SELECT ' . implode(', ', $selects) . ' FROM ' . $this->tableName . ' WHERE ';
         $params = [];
         $queryConditions = [];
-
         if (null !== $status) {
             if (is_array($status)) {
-                $queryConditions[] = 'status IN('.implode(',', array_fill(0, count($status), '?')).')';
+                $queryConditions[] = self::FIELD_STATUS . ' IN(' . implode(',', array_fill(0, count($status), '?')) . ')';
                 $params += $status;
             } else {
-                $queryConditions[] = 'status = ?';
+                $queryConditions[] = self::FIELD_STATUS . ' = ?';
                 $params[] = $status;
             }
         }
-
         if (null !== $sagaId) {
-            $queryConditions[] = 'saga_id = ?';
+            $queryConditions[] = self::FIELD_SAGA_ID . ' = ?';
             $params[] = $sagaId;
         }
-
         if (null !== $criteria) {
             $comparisons = $criteria->getComparisons();
 
@@ -225,6 +237,7 @@ class DBALSagaRepository implements RepositoryInterface
                 $this->applyJsonFiltering($queryConditions, $key);
             }
         }
+
         $types = $this->getParamTypes($params);
         $query .= implode(' AND ', $queryConditions);
 
@@ -232,31 +245,23 @@ class DBALSagaRepository implements RepositoryInterface
     }
 
     /**
-     * Add filtering by saga state criteria.
-     *
-     * @param string[] $queryConditions
-     * @param string   $key
+     * Add filtering by saga state criteria
      */
     protected function applyJsonFiltering(array &$queryConditions, string $key): void
     {
         switch ($this->connectionType) {
             case self::CONNECTION_TYPE_MYSQL:
-                $queryConditions[] = 'JSON_EXTRACT(values, \'$.'.$key.'\') = ?';
+                $queryConditions[] = 'JSON_EXTRACT(values, \'$.' . $key . '\') = ?';
 
                 break;
 
             case self::CONNECTION_TYPE_POSTGRES:
-                $queryConditions[] = 'values ->>\''.$key.'\' = ?';
+                $queryConditions[] = 'values ->>\'' . $key . '\' = ?';
 
                 break;
         }
     }
 
-    /**
-     * @param mixed[] $params
-     *
-     * @return mixed[]
-     */
     protected function getParamTypes(array $params): array
     {
         $supportedTypes = self::SUPPORTED_TYPES;
@@ -270,16 +275,11 @@ class DBALSagaRepository implements RepositoryInterface
     }
 
     /**
-     * Check is saga still active.
-     *
-     * @param string $sagaId
-     * @param string $id
-     *
-     * @return bool
+     * Check is saga still active
      */
     protected function activeSagaExists(string $sagaId, string $id): bool
     {
-        $query = 'SELECT 1 FROM '.$this->tableName.' WHERE saga_id = ? AND id = ? AND status IN (?,?)';
+        $query = "SELECT 1 FROM $this->tableName WHERE saga_id = ? AND id = ? AND status IN (?,?)";
         $params = [$sagaId, $id, State::SAGA_STATE_STATUS_FAILED, State::SAGA_STATE_STATUS_IN_PROGRESS];
         $results = $this->connection->fetchAll($query, $params);
 
@@ -291,11 +291,7 @@ class DBALSagaRepository implements RepositoryInterface
     }
 
     /**
-     * Check if table exists and return saga table schema.
-     *
-     * @param Schema $schema
-     *
-     * @return Table|null
+     * Check if table exists and return saga table schema
      */
     public function configureSchema(Schema $schema): ?Table
     {
@@ -307,11 +303,7 @@ class DBALSagaRepository implements RepositoryInterface
     }
 
     /**
-     * Configure table schema for save sagas states.
-     *
-     * @param Schema $schema
-     *
-     * @return Table
+     * Configure table schema for save sagas states
      */
     public function configureTable(Schema $schema): Table
     {
@@ -322,22 +314,19 @@ class DBALSagaRepository implements RepositoryInterface
             ],
         ];
         $table = $schema->createTable($this->tableName);
-        $table->addColumn('id', $uuidColumnDefinition['type'], $uuidColumnDefinition['params']);
-        $table->addColumn('saga_id', 'string', ['length' => 32]);
-        $table->addColumn('status', 'integer', ['unsigned' => true]);
-        $table->addColumn('values', 'json_array', ['jsonb' => true]);
-        $table->addColumn('recorded_on', 'datetime', ['default' => 'CURRENT_TIMESTAMP']);
-        $table->setPrimaryKey(['id']);
-        $table->addIndex(['saga_id']);
-        //$table->addIndex(['values']);
+        $table->addColumn(self::FIELD_ID, $uuidColumnDefinition['type'], $uuidColumnDefinition['params']);
+        $table->addColumn(self::FIELD_SAGA_ID, 'string', ['length' => 32]);
+        $table->addColumn(self::FIELD_STATUS, 'integer', ['unsigned' => true]);
+        $table->addColumn(self::FIELD_VALUES, 'json_array', ['jsonb' => true]);
+        $table->addColumn(self::FIELD_RECORDED_ON, 'datetime', ['default' => 'CURRENT_TIMESTAMP']);
+        $table->setPrimaryKey([self::FIELD_ID]);
+        $table->addIndex([self::FIELD_SAGA_ID]);
 
         return $table;
     }
 
     /**
-     * Return TableName.
-     *
-     * @return string
+     * Return TableName
      */
     public function getTableName(): string
     {
