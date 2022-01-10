@@ -175,7 +175,7 @@ class DBALSagaRepository implements RepositoryInterface
                 $this->connection->update($this->tableName, $saveState, ['id' => $serializedState['id']]);
             }
 
-            //Notice: For MySQL PDO `values` is value reserved name! It is needed to be quoted.
+            //Notice: For MySQL PDO `values` is a reserved name! It is needed to be quoted.
             $this->connection->quote('values');
 
             $this->connection->commit();
