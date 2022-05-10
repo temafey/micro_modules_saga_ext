@@ -10,8 +10,8 @@ use Broadway\Saga\State\RepositoryException;
 use Broadway\Saga\State\RepositoryInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DBALException;
-use Doctrine\DBAL\Driver\AbstractMySQLDriver;
-use Doctrine\DBAL\Driver\AbstractPostgreSQLDriver;
+use Doctrine\DBAL\Platforms\MySQLPlatform;
+use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
 use Exception;
@@ -81,23 +81,21 @@ class DBALSagaRepository implements RepositoryInterface
     protected function setConnection(Connection $connection): void
     {
         $this->connection = $connection;
-        $connectionDrive = $this->connection->getDriver();
+        $databasePlatform = $this->connection->getDatabasePlatform();
 
         switch (true) {
-            case $connectionDrive instanceof AbstractPostgreSQLDriver:
+            case $databasePlatform instanceof PostgreSQLPlatform:
                 $this->connectionType = self::CONNECTION_TYPE_POSTGRES;
 
                 break;
 
-            case $connectionDrive instanceof AbstractMySQLDriver:
+            case $databasePlatform instanceof MySQLPlatform:
                 $this->connectionType = self::CONNECTION_TYPE_MYSQL;
 
                 break;
 
             default:
-                throw new DBALException('Unsupported database type: '.get_class($connectionDrive));
-
-                break;
+                throw new DBALException('Unsupported database type: '.get_class($databasePlatform));
         }
     }
 
