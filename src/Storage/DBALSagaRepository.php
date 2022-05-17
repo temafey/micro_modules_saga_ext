@@ -9,7 +9,7 @@ use Broadway\Saga\State\Criteria;
 use Broadway\Saga\State\RepositoryException;
 use Broadway\Saga\State\RepositoryInterface;
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\DBALException;
+use Doctrine\DBAL\Exception as DBALException;
 use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Schema\Schema;
@@ -96,6 +96,8 @@ class DBALSagaRepository implements RepositoryInterface
 
             default:
                 throw new DBALException('Unsupported database type: '.get_class($databasePlatform));
+
+                break;
         }
     }
 
@@ -222,7 +224,7 @@ class DBALSagaRepository implements RepositoryInterface
         $types = $this->getParamTypes($params);
         $query .= implode(' AND ', $queryConditions);
 
-        return $this->connection->fetchAll($query, $params, $types);
+        return $this->connection->fetchAssociative($query, $params, $types);
     }
 
     /**
@@ -275,7 +277,7 @@ class DBALSagaRepository implements RepositoryInterface
     {
         $query = 'SELECT 1 FROM '.$this->tableName.' WHERE saga_id = ? AND id = ? AND status IN (?,?)';
         $params = [$sagaId, $id, State::SAGA_STATE_STATUS_FAILED, State::SAGA_STATE_STATUS_IN_PROGRESS];
-        $results = $this->connection->fetchAll($query, $params);
+        $results = $this->connection->fetchAssociative($query, $params);
 
         if ($results) {
             return true;
