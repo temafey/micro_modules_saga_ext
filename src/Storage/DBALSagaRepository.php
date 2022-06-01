@@ -113,7 +113,7 @@ class DBALSagaRepository implements RepositoryInterface
     {
         $results = $this->getSagaStatesByCriteriaAndStatus($criteria, $sagaId);
         $count = count($results);
-
+                                                                                                                                                                                                                                                         
         if (1 === $count) {
             $result = current($results);
             $result['status'] = $result['status'];
@@ -224,7 +224,7 @@ class DBALSagaRepository implements RepositoryInterface
         $types = $this->getParamTypes($params);
         $query .= implode(' AND ', $queryConditions);
 
-        return $this->connection->fetchAssociative($query, $params, $types);
+        return $this->connection->fetchAllAssociative($query, $params, $types);
     }
 
     /**
