@@ -319,7 +319,7 @@ class DBALSagaRepository implements RepositoryInterface
         ];
         $table = $schema->createTable($this->tableName);
         $table->addColumn('id', $uuidColumnDefinition['type'], $uuidColumnDefinition['params']);
-        $table->addColumn('saga_id', 'string', ['length' => 32]);
+        $table->addColumn('saga_id', 'string', ['length' => 100]);
         $table->addColumn('status', 'integer', ['unsigned' => true]);
         $table->addColumn('values', 'json_array', ['jsonb' => true]);
         $table->addColumn('recorded_on', 'datetime', ['default' => 'CURRENT_TIMESTAMP']);
