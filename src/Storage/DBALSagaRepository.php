@@ -14,8 +14,8 @@ use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
+use Doctrine\DBAL\ParameterType;
 use Exception;
-use PDO;
 
 /**
  * Class DBALSagaRepository.
@@ -26,12 +26,6 @@ use PDO;
  */
 class DBALSagaRepository implements RepositoryInterface
 {
-    protected const SUPPORTED_TYPES = [
-        'NULL' => PDO::PARAM_NULL,
-        'integer' => PDO::PARAM_INT,
-        'string' => PDO::PARAM_STR,
-        'boolean' => PDO::PARAM_BOOL,
-    ];
 
     protected const CONNECTION_TYPE_POSTGRES = 'postgres';
     protected const CONNECTION_TYPE_MYSQL = 'mysql';
@@ -251,15 +245,18 @@ class DBALSagaRepository implements RepositoryInterface
     /**
      * @param mixed[] $params
      *
-     * @return mixed[]
+     * @return ParameterType[]
      */
     protected function getParamTypes(array $params): array
     {
-        $supportedTypes = self::SUPPORTED_TYPES;
-
         return array_map(
-            static function ($param) use ($supportedTypes): int {
-                return $supportedTypes[gettype($param)] ?? PDO::PARAM_STR;
+            static function ($param): ParameterType {
+                return match (gettype($param)) {
+                    'NULL' => ParameterType::NULL,
+                    'integer' => ParameterType::INTEGER,
+                    'boolean' => ParameterType::BOOLEAN,
+                    default => ParameterType::STRING,
+                };
             },
             $params
         );
@@ -277,7 +274,8 @@ class DBALSagaRepository implements RepositoryInterface
     {
         $query = 'SELECT 1 FROM '.$this->tableName.' WHERE saga_id = ? AND id = ? AND status IN (?,?)';
         $params = [$sagaId, $id, State::SAGA_STATE_STATUS_FAILED, State::SAGA_STATE_STATUS_IN_PROGRESS];
-        $results = $this->connection->fetchAssociative($query, $params);
+        $types = $this->getParamTypes($params);
+        $results = $this->connection->fetchAssociative($query, $params, $types);
 
         if ($results) {
             return true;
