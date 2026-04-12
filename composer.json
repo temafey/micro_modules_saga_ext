@@ -33,5 +33,10 @@
         "psr-4": {
             "MicroModule\\Saga\\": "src"
         }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MicroModule\\Saga\\Tests\\": "tests"
+        }
     }
 }
