@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace MicroModule\Saga\Testing;
 
 use League\Tactician\CommandBus;
-use League\Tactician\Middleware;
-use Mockery;
 
 /**
  * Command bus that is able to record all dispatched commands.
@@ -20,33 +18,20 @@ final class TraceableCommandBus extends CommandBus
      *
      * @var object[]
      */
-    private $commands = [];
+    private array $commands = [];
 
     /**
      * Start set commands to command store.
-     *
-     * @var bool
      */
-    private $record = false;
+    private bool $record = false;
 
-    /**
-     * TraceableCommandBus constructor.
-     *
-     * @psalm-suppress PossiblyUndefinedMethod
-     * @psalm-suppress InvalidArgument
-     */
     public function __construct()
     {
-        $middleware = Mockery::mock(Middleware::class);
-        $middleware
-            ->shouldReceive('execute')
-            ->andReturnUsing(
-                static function ($command, $next) {
-                    return $next($command);
-                }
-            );
-
-        parent::__construct([$middleware]);
+        // handle() is fully overridden below and never invokes the parent
+        // middleware chain, so an empty middleware list is all the parent
+        // constructor needs. This avoids pulling Mockery (a require-dev
+        // package) into a class that ships in src/.
+        parent::__construct([]);
     }
 
     /**
